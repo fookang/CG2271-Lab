@@ -150,6 +150,8 @@ int mode = 0;
 // SW3 handler. SW3 toggles the mode
 void PORTA_IRQHandler () {
 	// Fill instruction to clear pending IRQ here
+    NVIC_ClearPendingIRQ(PORTA_IRQn);
+
 
 	// Check that SW3 was triggered
 	if(PORTA->ISFR & (1 << SW3)) {
@@ -168,6 +170,7 @@ void PORTA_IRQHandler () {
 void PORTC_PORTD_IRQHandler() {
 
 	// Fill instruction to clear pending IRQ here
+    NVIC_ClearPendingIRQ(PORTC_PORTD_IRQn);
 
 	// Check that it is SW2 pressesd
 	if(PORTC->ISFR & (1 << SW2)) {
