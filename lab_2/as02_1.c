@@ -52,20 +52,20 @@ void setMCGIRClk()
 
 void initTimer()
 {
-    // Disbale TPm1 interrupt
+    // Disbale TPM0 interrupt
     NVIC_DisableIRQ(TPM0_IRQn);
 
     setMCGIRClk();
 
     // Turn on clock gating for TMPO
-    SIM->SCGC6 |= SIM_SCGC6_TPM1_MASK;
+    SIM->SCGC6 |= SIM_SCGC6_TPM0_MASK;
 
     // Clear TPM clock source
     SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
 
     // Select MCGICLK
     SIM->SOPT2 |= SIM_SOPT2_TPMSRC(0b11);
-    
+
     // Turn off TPM0 and clear Prescale counter
     TPM0->SC &= ~(TPM_SC_CMOD_MASK | TPM_SC_PS_MASK);
 
@@ -117,22 +117,49 @@ void TPM0_IRQHandler()
 }
 
 void initGPIO()
+{
+    // Set clock for GPIO D E
+    SIM->SCGC5 |= (SIM_SCGC5_PORTD_MASK | SIM_SCGC5_PORTE_MASK);
 
-    void ledOn(TLED led) {
-        switch(led) {
-            case RED:
-                GPIOE->PCOR |= (1 << RED_PIN);
-                break;
+    // GPIO for PTE31
+    PORTE->PCR[RED_PIN] &= ~PORT_PCR_MUX_MASK;
+    PORTE->PCR[RED_PIN] |= PORT_PCR_MUX(1);
 
-            case GREEN:
-                GPIOD->PCOR |= (1 << GREEN_PIN);
-                break;
+    // GPIO for PTE29
+    PORTE->PCR[BLUE_PIN] &= ~PORT_PCR_MUX_MASK;
+    PORTE->PCR[BLUE_PIN] |= PORT_PCR_MUX(1);
 
-            case BLUE:
-                GPIOE->PCOR |= (1 << BLUE_PIN);
-                break;
-        }
+    // GPIO for PTD5
+    PORTD->PCR[GREEN_PIN] &= ~PORT_PCR_MUX_MASK;
+    PORTD->PCR[GREEN_PIN] |= PORT_PCR_MUX(1);
+
+    // Set PTE29 and PTE31 as output
+    GPIOE->PDDR |= (1 << RED_PIN) | (1 << BLUE_PIN);
+
+    // Set PTD5 as output
+    GPIOD->PDDR |= (1 << GREEN_PIN);
+
+    // Switch off LED
+    GPIOE->PSOR |= (1 << RED_PIN) | (1 << BLUE_PIN);
+    GPIOD->PSOR |= (1 << GREEN_PIN);
+
+}
+
+void ledOn(TLED led) {
+    switch(led) {
+        case RED:
+            GPIOE->PCOR |= (1 << RED_PIN);
+            break;
+
+        case GREEN:
+            GPIOD->PCOR |= (1 << GREEN_PIN);
+            break;
+
+        case BLUE:
+            GPIOE->PCOR |= (1 << BLUE_PIN);
+            break;
     }
+}
 
 void ledOff(TLED led) {
     switch(led) {
