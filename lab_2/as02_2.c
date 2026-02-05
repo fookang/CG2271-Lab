@@ -1,4 +1,4 @@
-//*
+/*
  * Copyright 2016-2025 NXP
  * All rights reserved.
  *
@@ -32,27 +32,141 @@ typedef enum tl {
 
 //TODO
 void setMCGIRClk() {
+    // Clear clk
+    MCG->C1 &= ~MCG_C1_CLKS_MASK;
+
+    // Set clock source to LIRC
+    // Set IRCLKEN to enable LIRC
+    MCG->C1 |= ((MCG_C1_CLKS(0b01) | MCG_C1_IRCLKEN_MASK));
+
+    // Set IRCS to choose 8 MHz clock
+    MCG->C2 |= MCG_C2_IRCS_MASK;
+
+    // Set FRCDIV for divisor 1
+    MCG->SC &= ~MCG_SC_FCRDIV_MASK;
+    MCG->SC |= MCG_SC_FCRDIV(0b0);
+
+    // Set LIRC_DIV2 for divisor 1
+    MCG->MC &= ~MCG_MC_LIRC_DIV2_MASK;
+    MCG->MC |= MCG_MC_LIRC_DIV2(0b0);
 }
 
 void initTimer() {
+	//disable TPM1 interrupt
+	NVIC_DisableIRQ(TPM1_IRQn);
+
+	setMCGIRClk();
+
+	//turn on clock gating to TPM1
+	SIM->SCGC6 |= SIM_SCGC6_TPM1_MASK;
+
+	//Choose 8MHz MCGIRCLK
+    SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
+    SIM->SOPT2 |= SIM_SOPT2_TPMSRC(0b11);
+
+	//Turn off TPM1 and mask the prescalar
+    TPM1->SC &= ~(TPM_SC_CMOD_MASK | TPM_SC_PS_MASK);
+
+	//Set prescalar of 128, and enable TOIE
+    TPM1->SC |= (TPM_SC_TOIE_MASK | TPM_SC_PS(0b111));
+
+	//Initialize the counter to 0
+    TPM1->CNT = 0;
+
+	//Initialize modulo of 625
+    TPM1->MOD = 625;
+
+	//Set the priority to the highest & enable IRQ
+    NVIC_SetPriority(TPM1_IRQn, 0);
+    NVIC_EnableIRQ(TPM1_IRQn);
 }
 
 void startTimer() {
+    TPM1->SC |= TPM_SC_CMOD(0b1);
 }
 
 void stopTimer() {
+    TPM1->SC &= ~TPM_SC_CMOD_MASK;
 }
 
 void initPWM() {
+	//turn on clock gating to TPM0
+	SIM->SCGC6 |= SIM_SCGC6_TPM0_MASK;
+
+	//turn on clock gating to PORTD and PORTE
+	SIM->SCGC5 |= (SIM_SCGC5_PORTE_MASK | SIM_SCGC5_PORTD_MASK);
+
+	//configure the RGB LED MUX to be for PWM
+	PORTE->PCR[RED_PIN] &= ~PORT_PCR_MUX_MASK;
+	PORTE->PCR[RED_PIN] |= PORT_PCR_MUX(0b11);
+
+	PORTE->PCR[BLUE_PIN] &= ~PORT_PCR_MUX_MASK;
+	PORTE->PCR[BLUE_PIN] |= PORT_PCR_MUX(0b11);
+
+	PORTD->PCR[GREEN_PIN] &= ~PORT_PCR_MUX_MASK;
+	PORTD->PCR[GREEN_PIN] |= PORT_PCR_MUX(0b11);
+
+	//set pins to output (good practice)
+	GPIOE->PDDR |= ((1 << RED_PIN) | (1 << BLUE_PIN));
+    GPIOD->PDDR |= (1 << GREEN_PIN);
+
+	//the following code is used to setup TPM0
+	//turn off TPM0 by clearing the clock mode
+    TPM0->SC &= ~TPM_SC_CMOD_MASK;
+
+	//clear and set the prescalar 128
+    TPM0->SC &= ~TPM_SC_PS_MASK;
+    TPM0->SC |= (TPM_SC_TOIE_MASK | TPM_SC_PS(0b111));
+
+	//set centre-aligned PWM mode
+    TPM0->SC |= TPM_SC_CPWMS_MASK;
+
+	//initialize count to 0
+    TPM0->CNT = 0;
+
+	//choose and initialize modulo 125
+    TPM0->MOD = 125;
+
+	//Configure TPM0 channels.
+	//IMPORTANT: Configure a REVERSE PWM signal!!!
+	//i.e. it sets when counting up and clears when counting
+	//down. This is because the LEDs are active low.
+    // MS = 10, ELS = 01
+    TPM0->CONTROLS[2].CnSC &= ~(TPM_CnSC_MSB_MASK | TPM_CnSC_MSA_MASK | TPM_CnSC_ELSB_MASK | TPM_CnSC_ELSA_MASK);
+    TPM0->CONTROLS[2].CnSC |= (TPM_CnSC_MSB(1) | TPM_CnSC_MSA(0) | TPM_CnSC_ELSB(0) | TPM_CnSC_ELSA(1));
+    TPM0->CONTROLS[4].CnSC &= ~(TPM_CnSC_MSB_MASK | TPM_CnSC_MSA_MASK | TPM_CnSC_ELSB_MASK | TPM_CnSC_ELSA_MASK);
+    TPM0->CONTROLS[4].CnSC |= (TPM_CnSC_MSB(1) | TPM_CnSC_MSA(0) | TPM_CnSC_ELSB(0) | TPM_CnSC_ELSA(1));
+    TPM0->CONTROLS[5].CnSC &= ~(TPM_CnSC_MSB_MASK | TPM_CnSC_MSA_MASK | TPM_CnSC_ELSB_MASK | TPM_CnSC_ELSA_MASK);
+    TPM0->CONTROLS[5].CnSC |= (TPM_CnSC_MSB(1) | TPM_CnSC_MSA(0) | TPM_CnSC_ELSB(0) | TPM_CnSC_ELSA(1));
 }
 
 void startPWM() {
+	//set CMOD for TPM0
+    TPM0->SC |= TPM_SC_CMOD(0b1);
 }
 
 void stopPWM() {
+	//mask CMOD for TPM0
+    TPM0->SC &= ~TPM_SC_CMOD_MASK;
 }
 
 void setPWM(int LED, int percent) {
+	// convert percent into a value
+	int value = (int) (percent / 100.0 * (double) TPM0->MOD);
+	switch(LED) {
+	    case(RED):
+		//	set TPM0 control value
+		//	repeat for BLUE and GREEN
+			TPM0->CONTROLS[4].CnV = value;
+	    	break;
+	    case(GREEN):
+			TPM0->CONTROLS[5].CnV = value;
+	    	break;
+	    case(BLUE):
+			TPM0->CONTROLS[2].CnV = value;
+	    	break;
+	    default: printf("invalid LED.\r\n");
+	}
 }
 
 volatile int val = 0;
@@ -129,12 +243,12 @@ void PORTA_IRQHandler() {
         stopPWM();
         TPM0->CNT = 0;
             // TODO: write modulo for 20Hz
-        if (TPM0->MOD == ) {
+        if (TPM0->MOD == 1563) {
             // TODO: write modulo for 250Hz
-        	TPM0->MOD = ;
+        	TPM0->MOD = 125;
         } else {
             // TODO: write modulo for 20Hz
-        	TPM0->MOD = ;
+        	TPM0->MOD = 1563; // rounded up from 1562.5
         }
         startPWM();
 	}
@@ -174,3 +288,4 @@ int main(void) {
     }
     return 0 ;
 }
+
