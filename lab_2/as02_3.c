@@ -27,11 +27,6 @@
 
 #define SWITCH_PIN   4  // PTA4
 
-#define ADC_PIN1 30
-#define ADC_PIN1_CHANNEL 23
-#define ADC_PIN2 2
-#define ADC_PIN2_CHANNEL 12
-
 typedef enum tl {
 	RED, GREEN, BLUE
 } TLED;
@@ -55,14 +50,13 @@ void initADC() {
 	// Enable clock gating to relevant configurations
 	SIM->SCGC6 |= SIM_SCGC6_ADC0_MASK;
 	SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
-	SIM->SCGC5 |= SIM_SCGC5_PORTB_MASK;
 
 	// Set pins from Q3 to ADC
-	PORTE->PCR[ADC_PIN1] &= ~PORT_PCR_MUX_MASK;
-	PORTE->PCR[ADC_PIN1] |= PORT_PCR_MUX(0b0);
+	PORTE->PCR[ADC_SE0_PIN] &= ~PORT_PCR_MUX_MASK;
+	PORTE->PCR[ADC_SE0_PIN] |= PORT_PCR_MUX(0b0);
 
-	PORTB->PCR[ADC_PIN2] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[ADC_PIN2] |= PORT_PCR_MUX(0b0);
+	PORTE->PCR[ADC_SE4_PIN] &= ~PORT_PCR_MUX_MASK;
+	PORTE->PCR[ADC_SE4_PIN] |= PORT_PCR_MUX(0b0);
 
 	// Configure the ADC
 	// Enable ADC interrupt
@@ -115,9 +109,9 @@ void ADC0_IRQHandler(){
 		//PRINTF("Turn = %d, Result = %d\r\n", turn, result[turn]);
 		turn = 1 - turn;
 		if(turn == 0) {
-			startADC(ADC_PIN1_CHANNEL);
+			startADC(ADC_SE0);
 		} else {
-			startADC(ADC_PIN2_CHANNEL);
+			startADC(ADC_SE4a);
 		}
 	}
 }
@@ -312,7 +306,7 @@ int main(void) {
     startPWM();
 
     initADC();
-    startADC(ADC_PIN1_CHANNEL);
+    startADC(ADC_SE0);
     /* Force the counter to be placed into memory. */
     volatile static int i = 0 ;
     /* Enter an infinite loop, just incrementing a counter. */
