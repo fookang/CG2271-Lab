@@ -104,7 +104,7 @@ void initPWM() {
 	PORTE->PCR[BLUE_PIN] |= PORT_PCR_MUX(0b11);
 
 	PORTD->PCR[GREEN_PIN] &= ~PORT_PCR_MUX_MASK;
-	PORTD->PCR[GREEN_PIN] |= PORT_PCR_MUX(0b11);
+	PORTD->PCR[GREEN_PIN] |= PORT_PCR_MUX(0b100);
 
 	//set pins to output (good practice)
 	GPIOE->PDDR |= ((1 << RED_PIN) | (1 << BLUE_PIN));
